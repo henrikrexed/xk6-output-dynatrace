@@ -7,7 +7,7 @@ import (
 	"strings"
 	"time"
     "fmt"
-	"github.com/kubernetes/helm/pkg/strvals"
+	
 	"go.k6.io/k6/lib/types"
     "gopkg.in/guregu/null.v3"
 )
@@ -68,8 +68,6 @@ func (conf Config) ConstructConfig() (*Config, error) {
 // From here till the end of the file partial duplicates waiting for config refactor (k6 #883)
 
 func (base Config) Apply(applied Config) Config {
-
-
 	if len(applied.Url)>0 {
 		base.Url = applied.Url
 	}
@@ -85,8 +83,6 @@ func (base Config) Apply(applied Config) Config {
 	if applied.ApiToken.Valid {
 		base.ApiToken = applied.ApiToken
 	}
-
-
 
 	if applied.FlushPeriod.Valid {
 		base.FlushPeriod = applied.FlushPeriod
@@ -116,10 +112,7 @@ func (base Config) Apply(applied Config) Config {
 // ParseArg takes an arg string and converts it to a config
 func ParseArg(arg string) (Config, error) {
 	var c Config
-	params, err := strvals.Parse(arg)
-	if err != nil {
-		return c, err
-	}
+	params := parseKeyValuePairs(arg)
 
 	if v, ok := params["url"].(string); ok {
 		c.Url = v
@@ -136,8 +129,6 @@ func ParseArg(arg string) (Config, error) {
 	if v, ok := params["apitoken"].(string); ok {
 		c.ApiToken = null.StringFrom(v)
 	}
-
-
 	if v, ok := params["flushPeriod"].(string); ok {
 		if err := c.FlushPeriod.UnmarshalText([]byte(v)); err != nil {
 			return c, err
@@ -209,8 +200,6 @@ func GetConsolidatedConfig(jsonRawConf json.RawMessage, env map[string]string, a
 		}
 	}
 
-
-
 	if url, urlDefined := env["K6_DYNATRACE_URL"]; urlDefined {
 		result.Url =url
 	}
@@ -231,8 +220,6 @@ func GetConsolidatedConfig(jsonRawConf json.RawMessage, env map[string]string, a
 	if apitoken, userDefined := env["K6_DYNATRACE_APITOKEN"]; userDefined {
 		result.ApiToken = null.StringFrom(apitoken)
 	}
-
-
 	if b, err := getEnvBool(env, "K6_KEEP_TAGS"); err != nil {
 		return result, err
 	} else {
