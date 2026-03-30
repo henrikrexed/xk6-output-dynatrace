@@ -1,9 +1,12 @@
-FROM golang:1.23-alpine AS builder
+FROM --platform=$BUILDPLATFORM golang:1.23-alpine AS builder
+ARG TARGETPLATFORM
+ARG TARGETOS
+ARG TARGETARCH
 WORKDIR /build
 RUN apk --no-cache add git
 RUN CGO_ENABLED=0 go install go.k6.io/xk6/cmd/xk6@latest
 COPY . .
-RUN CGO_ENABLED=0 xk6 build \
+RUN CGO_ENABLED=0 GOOS=${TARGETOS} GOARCH=${TARGETARCH} xk6 build \
     --output /k6 \
     --with github.com/Dynatrace/xk6-output-dynatrace=.
 
