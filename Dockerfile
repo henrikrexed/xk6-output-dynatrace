@@ -1,9 +1,16 @@
-FROM golang:1.17-alpine as builder
-WORKDIR $GOPATH/src/go.k6.io/k6
-ADD . .
+FROM golang:1.23-alpine AS builder
+WORKDIR /build
 RUN apk --no-cache add git
 RUN CGO_ENABLED=0 go install go.k6.io/xk6/cmd/xk6@latest
-RUN CGO_ENABLED=0 xk6 build --output /k6  --with github.com/Dynatrace/xk6-output-dynatrace=.
+COPY . .
+RUN CGO_ENABLED=0 xk6 build \
+    --output /k6 \
+    --with github.com/Dynatrace/xk6-output-dynatrace=.
 
-FROM grafana/k6:latest
+FROM alpine:3.20
+RUN apk --no-cache add ca-certificates && \
+    adduser -D -u 12345 k6
 COPY --from=builder /k6 /usr/bin/k6
+USER k6
+WORKDIR /home/k6
+ENTRYPOINT ["k6"]
