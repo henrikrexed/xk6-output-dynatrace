@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"time"
     "net/http"
-    "io/ioutil"
+    "io"
 	//nolint:staticcheck
     "bytes"
 	"github.com/sirupsen/logrus"
@@ -120,7 +120,7 @@ func (o *Output) flush() {
                  }
             }
             o.logger.Debug("response Headers:" + b)
-            body, _ := ioutil.ReadAll(response.Body)
+            body, _ := io.ReadAll(response.Body)
             o.logger.Debug("response Body:"+ string(body))
     } else {
          o.logger.Debug("no data to send")
