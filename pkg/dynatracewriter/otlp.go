@@ -2,7 +2,9 @@ package dynatracewriter
 
 import (
 	"context"
+	"crypto/tls"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/sirupsen/logrus"
@@ -47,10 +49,12 @@ func NewOTLP(params output.Params) (*OTLPOutput, error) {
 		return nil, fmt.Errorf("K6_DYNATRACE_URL is required for OTLP output mode")
 	}
 
-	// Build headers with auth
+	// Build headers with auth, excluding Content-Type which is managed by the OTLP exporter
 	headers := make(map[string]string)
 	for k, v := range newconfig.Headers {
-		headers[k] = v
+		if !strings.EqualFold(k, "Content-Type") {
+			headers[k] = v
+		}
 	}
 
 	opts := []otlpmetrichttp.Option{
@@ -63,7 +67,8 @@ func NewOTLP(params output.Params) (*OTLPOutput, error) {
 	}
 
 	if newconfig.InsecureSkipTLSVerify.Bool {
-		opts = append(opts, otlpmetrichttp.WithInsecure())
+		tlsCfg := &tls.Config{InsecureSkipVerify: true} // #nosec G402 -- user-configured skip
+		opts = append(opts, otlpmetrichttp.WithTLSClientConfig(tlsCfg))
 	}
 
 	exporter, err := otlpmetrichttp.New(context.Background(), opts...)
