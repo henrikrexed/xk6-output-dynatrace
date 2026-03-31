@@ -277,7 +277,7 @@ func GetConsolidatedConfig(jsonRawConf json.RawMessage, env map[string]string, a
 		}
 	}
 
-	envHeaders := getEnvMap(env, "K6_DYNATRACE_HEADER")
+	envHeaders := getEnvMap(env, "K6_DYNATRACE_HEADER_")
 	for k, v := range envHeaders {
 		result.Headers[k] = v
 	}

@@ -138,6 +138,25 @@ func TestGetConsolidatedConfig(t *testing.T) {
 			config:    Config{},
 			errString: "strconv.ParseBool",
 		},
+		"with_headers_env": {
+			jsonRaw: json.RawMessage(fmt.Sprintf("{\"url\":\"%s\"}", "https://bix24852.dev.dynatracelabs.com")),
+			env:     map[string]string{"K6_DYNATRACE_HEADER_APPID": "12345"},
+			arg:     "",
+			config: Config{
+				Url:                   "https://bix24852.dev.dynatracelabs.com",
+				InsecureSkipTLSVerify: null.BoolFrom(true),
+				CACert:                null.NewString("", false),
+				ApiToken:              null.NewString("", false),
+				FlushPeriod:           types.NullDurationFrom(defaultFlushPeriod),
+				KeepTags:              null.BoolFrom(true),
+				KeepNameTag:           null.BoolFrom(false),
+				KeepUrlTag:            null.BoolFrom(true),
+				Headers: map[string]string{
+					"APPID": "12345",
+				},
+			},
+			errString: "",
+		},
 		"with_headers_json": {
 			jsonRaw: json.RawMessage(fmt.Sprintf("{\"url\":\"%s\", \"headers\":{\"X-Header\":\"value\"}}", "https://bix24852.dev.dynatracelabs.com")),
 			env:     nil,
