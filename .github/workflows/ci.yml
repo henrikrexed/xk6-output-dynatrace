@@ -15,7 +15,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
-          go-version: '1.23'
+          go-version: '1.25'
 
       - name: Run tests
         run: go test ./... -v -race -count=1
@@ -23,16 +23,31 @@ jobs:
       - name: Run vet
         run: go vet ./...
 
-  build:
+  lint:
     runs-on: ubuntu-latest
-    needs: test
     steps:
       - uses: actions/checkout@v4
 
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
-          go-version: '1.23'
+          go-version: '1.25'
+
+      - name: Run golangci-lint
+        uses: golangci/golangci-lint-action@v6
+        with:
+          version: latest
+
+  build:
+    runs-on: ubuntu-latest
+    needs: [test, lint]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.25'
 
       - name: Install xk6
         run: go install go.k6.io/xk6/cmd/xk6@latest
@@ -44,4 +59,6 @@ jobs:
             --with github.com/Dynatrace/xk6-output-dynatrace=.
 
       - name: Verify binary
-        run: ./k6 version
+        run: |
+          ./k6 version
+          ./k6 run --help
