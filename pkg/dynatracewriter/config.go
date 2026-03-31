@@ -13,10 +13,14 @@ import (
 )
 
 const (
-	defaultDynatraceTimeout = time.Minute
-	defaultFlushPeriod       = time.Second
-	defaultMetricPrefix      = "k6."
-	defaultDynatraceMetricEndPoint ="/api/v2/metrics/ingest"
+	defaultDynatraceTimeout        = time.Minute
+	defaultFlushPeriod             = 5 * time.Second
+	defaultMetricPrefix            = "k6."
+	defaultDynatraceMetricEndPoint = "/api/v2/metrics/ingest"
+	defaultBatchSize               = 1000
+	maxBatchSize                   = 1500
+	defaultMaxConcurrentExports    = 2
+	defaultMaxPayloadBytes         = 900 * 1024 // 900 KB safety margin under 1 MB MINT limit
 )
 
 type Config struct {
@@ -29,6 +33,8 @@ type Config struct {
 	KeepTags    null.Bool `json:"keepTags" envconfig:"K6_KEEP_TAGS"`
 	KeepNameTag null.Bool `json:"keepNameTag" envconfig:"K6_KEEP_NAME_TAG"`
 	KeepUrlTag  null.Bool `json:"keepUrlTag" envconfig:"K6_KEEP_URL_TAG"`
+	BatchSize            int `json:"batchSize" envconfig:"K6_DYNATRACE_BATCH_SIZE"`
+	MaxConcurrentExports int `json:"maxConcurrentExports" envconfig:"K6_DYNATRACE_MAX_CONCURRENT_EXPORTS"`
 }
 
 func NewConfig() Config {
@@ -42,6 +48,8 @@ func NewConfig() Config {
 		KeepNameTag:           null.BoolFrom(false),
 		KeepUrlTag:            null.BoolFrom(true),
 		Headers:               make(map[string]string),
+		BatchSize:             defaultBatchSize,
+		MaxConcurrentExports:  defaultMaxConcurrentExports,
 	}
 }
 
@@ -104,6 +112,14 @@ func (base Config) Apply(applied Config) Config {
 		for k, v := range applied.Headers {
 			base.Headers[k] = v
 		}
+	}
+
+	if applied.BatchSize > 0 {
+		base.BatchSize = applied.BatchSize
+	}
+
+	if applied.MaxConcurrentExports > 0 {
+		base.MaxConcurrentExports = applied.MaxConcurrentExports
 	}
 
 	return base
@@ -241,6 +257,23 @@ func GetConsolidatedConfig(jsonRawConf json.RawMessage, env map[string]string, a
 	} else {
 		if b.Valid {
 			result.KeepUrlTag = b
+		}
+	}
+
+	if batchSize, ok := env["K6_DYNATRACE_BATCH_SIZE"]; ok {
+		if bs, err := strconv.Atoi(batchSize); err == nil {
+			if bs > maxBatchSize {
+				bs = maxBatchSize
+			}
+			if bs > 0 {
+				result.BatchSize = bs
+			}
+		}
+	}
+
+	if maxConc, ok := env["K6_DYNATRACE_MAX_CONCURRENT_EXPORTS"]; ok {
+		if mc, err := strconv.Atoi(maxConc); err == nil && mc > 0 {
+			result.MaxConcurrentExports = mc
 		}
 	}
 

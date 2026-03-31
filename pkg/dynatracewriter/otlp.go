@@ -116,14 +116,57 @@ func (o *OTLPOutput) flush() {
 	}
 
 	rm := o.convertToOTLPMetrics(samplesContainers)
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-	defer cancel()
 
-	if err := o.exporter.Export(ctx, &rm); err != nil {
-		o.logger.WithError(err).Error("Dynatrace OTLP: export failed")
-	} else {
-		o.logger.WithField("duration", time.Since(start)).Debug("Dynatrace OTLP: export complete")
+	// Chunk ScopeMetrics if too many metrics to avoid oversized payloads.
+	batchSize := o.config.BatchSize
+	if batchSize <= 0 {
+		batchSize = defaultBatchSize
 	}
+
+	allMetrics := rm.ScopeMetrics[0].Metrics
+	if len(allMetrics) <= batchSize {
+		// Small enough to send in one shot
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
+		if err := o.exporter.Export(ctx, &rm); err != nil {
+			o.logger.WithError(err).Error("Dynatrace OTLP: export failed")
+		} else {
+			o.logger.WithField("duration", time.Since(start)).
+				WithField("metrics", len(allMetrics)).
+				Debug("Dynatrace OTLP: export complete")
+		}
+		return
+	}
+
+	// Send in chunks
+	var failed int
+	for i := 0; i < len(allMetrics); i += batchSize {
+		end := i + batchSize
+		if end > len(allMetrics) {
+			end = len(allMetrics)
+		}
+		chunk := metricdata.ResourceMetrics{
+			Resource: rm.Resource,
+			ScopeMetrics: []metricdata.ScopeMetrics{
+				{
+					Scope:   rm.ScopeMetrics[0].Scope,
+					Metrics: allMetrics[i:end],
+				},
+			},
+		}
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		if err := o.exporter.Export(ctx, &chunk); err != nil {
+			o.logger.WithError(err).WithField("batch_offset", i).Error("Dynatrace OTLP: batch export failed")
+			failed++
+		}
+		cancel()
+	}
+
+	o.logger.WithField("duration", time.Since(start)).
+		WithField("total_metrics", len(allMetrics)).
+		WithField("batches", (len(allMetrics)+batchSize-1)/batchSize).
+		WithField("failed", failed).
+		Debug("Dynatrace OTLP: chunked export complete")
 }
 
 func (o *OTLPOutput) convertToOTLPMetrics(samplesContainers []metrics.SampleContainer) metricdata.ResourceMetrics {
