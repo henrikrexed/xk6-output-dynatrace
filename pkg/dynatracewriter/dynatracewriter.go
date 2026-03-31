@@ -3,13 +3,10 @@ package dynatracewriter
 import (
 	"fmt"
 	"time"
-    "net/http"
-    "io"
-	//nolint:staticcheck
-    "bytes"
+
 	"github.com/sirupsen/logrus"
-	"go.k6.io/k6/output"
 	"go.k6.io/k6/metrics"
+	"go.k6.io/k6/output"
 )
 
 type Output struct {
@@ -72,7 +69,6 @@ func (o *Output) flush() {
 	defer func() {
 		d := time.Since(start)
 		if d > time.Duration(o.config.FlushPeriod.Duration) {
-			// There is no intermediary storage so warn if writing to remote write endpoint becomes too slow
 			o.logger.WithField("nts", nts).
 				Warn(fmt.Sprintf("Remote write took %s while flush period is %s. Some samples may be dropped.",
 					d.String(), o.config.FlushPeriod.String()))
@@ -84,48 +80,37 @@ func (o *Output) flush() {
 	}()
 
 	samplesContainers := o.GetBufferedSamples()
+	dynatraceMetrics := o.convertToTimeDynatraceData(samplesContainers)
+	nts = len(dynatraceMetrics)
 
-	// Remote write endpoint accepts TimeSeries structure defined in gRPC. It must:
-	// a) contain Labels array
-	// b) have a __name__ label: without it, metric might be unquerable or even rejected
-	// as a metric without a name. This behaviour depends on underlying storage used.
-	// c) not have duplicate timestamps within 1 timeseries, see https://github.com/prometheus/prometheus/issues/9210
-	// Prometheus write handler processes only some fields as of now, so here we'll add only them.
-	dynatraceMetric := o.convertToTimeDynatraceData(samplesContainers)
-	nts = len(dynatraceMetric)
-    if nts > 0 {
-             o.logger.WithField("nts", nts).Debug("Converted samples to time series in preparation for sending.")
+	if nts == 0 {
+		o.logger.Debug("no data to send")
+		return
+	}
 
-            var payload=generatePayload(dynatraceMetric)
+	o.logger.WithField("nts", nts).Debug("Converted samples to time series in preparation for sending.")
 
-        	request, error := http.NewRequest( "POST", o.config.Url, bytes.NewBuffer([]byte(payload)))
+	results := batchSend(
+		dynatraceMetrics,
+		o.config.Url,
+		o.config.Headers,
+		o.config.BatchSize,
+		o.config.MaxConcurrentExports,
+		o.logger,
+	)
 
-        	for key,value := range o.config.Headers {
-        	    request.Header.Set(key, value)
-        	}
-            o.logger.Debug("Payload to send " + payload)
-            client := &http.Client{}
-            response, error := client.Do(request)
-            if error != nil {
-                o.logger.WithError(error).Fatal("Failed to send timeseries.")
-            }
-            o.logger.Debug("response Status:" + response.Status)
-            defer response.Body.Close()
-
-
-            var b=""
-            for key, value := range  response.Header {
-                 for _, singlevalue := range value {
-                    b+=key+"="+singlevalue+"\n"
-                 }
-            }
-            o.logger.Debug("response Headers:" + b)
-            body, _ := io.ReadAll(response.Body)
-            o.logger.Debug("response Body:"+ string(body))
-    } else {
-         o.logger.Debug("no data to send")
-    }
-
+	var failed int
+	for _, r := range results {
+		if r.err != nil {
+			failed++
+			o.logger.WithError(r.err).WithField("batch", r.batchIndex).
+				Error("Dynatrace: batch send failed")
+		}
+	}
+	if failed > 0 {
+		o.logger.WithField("failed_batches", failed).WithField("total_batches", len(results)).
+			Warn("Dynatrace: some batches failed to send")
+	}
 }
 
 func generatePayload(dynatraceMetrics []dynatraceMetric) string {
