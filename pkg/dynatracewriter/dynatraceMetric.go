@@ -25,9 +25,20 @@ type dynatraceMetric struct{
 
 
 func samleToDynametric(sample metrics.Sample ) dynatraceMetric {
+     dims := sample.GetTags().Map()
+
+     // Normalize url and name dimensions to reduce cardinality and prevent
+     // MINT protocol line length overflow / dimension value rejections.
+     if v, ok := dims["url"]; ok && len(v) > 0 {
+        dims["url"] = normalizeURL(v)
+     }
+     if v, ok := dims["name"]; ok && len(v) > 0 {
+        dims["name"] = normalizeURL(v)
+     }
+
      return dynatraceMetric{
         metricKeyName : sample.Metric.Name,
-        metricDimensions : sample.GetTags().Map(),
+        metricDimensions : dims,
         metricValue : sample.Value,
         metricTimeStamp : sample.GetTime().UnixMilli(),
      }

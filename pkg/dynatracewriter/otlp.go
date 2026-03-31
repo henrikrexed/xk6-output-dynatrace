@@ -137,6 +137,10 @@ func (o *OTLPOutput) convertToOTLPMetrics(samplesContainers []metrics.SampleCont
 			if sample.Tags != nil {
 				for k, v := range sample.Tags.Map() {
 					if len(k) > 0 && len(v) > 0 {
+						// Normalize url and name attributes to reduce cardinality
+						if k == "url" || k == "name" {
+							v = normalizeURL(v)
+						}
 						attrs = append(attrs, attribute.String(k, v))
 					}
 				}
