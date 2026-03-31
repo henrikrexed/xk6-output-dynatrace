@@ -45,8 +45,25 @@ This sets the HTTP header `X_CUSTOM_HEADER: myvalue` on metric ingest requests.
 >
 > Tags added this way will appear as dimensions on the corresponding k6 metrics in Dynatrace.
 
+### OTLP Mode
+
+To send metrics via OpenTelemetry Protocol (OTLP/HTTP) instead of MINT, set:
+
+```
+export K6_DYNATRACE_OUTPUT_MODE=otlp
+./k6 run script.js -o output-dynatrace
+```
+
+The `-o` flag remains the same; only the transport changes.
+
+### Examples
+
+See the [examples/](examples/) directory for sample k6 scripts:
+
+- [basic.js](examples/basic.js) — Simple HTTP test with MINT output
+- [custom-tags.js](examples/custom-tags.js) — Using k6 tags for custom metric dimensions
+- [otlp-mode.js](examples/otlp-mode.js) — Sending metrics via OTLP/HTTP
+
 ### On sample rate
 
 k6 processes its outputs once per second and that is also a default flush period in this extension. The number of k6 builtin metrics is 26 and they are collected at the rate of 50ms. In practice it means that there will be around 1000-1500 samples on average per each flush period in case of raw mapping. If custom metrics are configured, that estimate will have to be adjusted.
-
-
