@@ -9,8 +9,10 @@ Invented by: github.com/henrikrexed
 
 To build k6 binary with the Prometheus remote write output extension use:
 ```
-xk6 build --with github.com/Dynatrace/xk6-output-dynatrace@latest 
+xk6 build --with github.com/Dynatrace/xk6-output-dynatrace@latest
 ```
+
+> **Important:** Use capital 'D' in `Dynatrace` — Go modules are case-sensitive. Using `github.com/dynatrace/...` (lowercase) will cause the build to fail.
 
 Then run new k6 binary with:
 ```
