@@ -112,7 +112,7 @@ func TestBatchSend_ConcurrentSending(t *testing.T) {
 		"Authorization": "Api-Token test",
 	}
 
-	results := batchSend(metrics, server.URL, headers, 100, 2, logger)
+	results := batchSend(metrics, server.URL, headers, 100, 2, &http.Client{}, logger)
 
 	// 250 metrics / 100 per batch = 3 batches
 	assert.Equal(t, 3, len(results))
@@ -126,7 +126,7 @@ func TestBatchSend_Empty(t *testing.T) {
 	t.Parallel()
 
 	logger := logrus.New()
-	results := batchSend(nil, "http://unused", nil, 100, 2, logger)
+	results := batchSend(nil, "http://unused", nil, 100, 2, &http.Client{}, logger)
 	assert.Nil(t, results)
 }
 
@@ -142,7 +142,7 @@ func TestBatchSend_ServerError(t *testing.T) {
 	logger := logrus.New()
 	logger.SetLevel(logrus.DebugLevel)
 
-	results := batchSend(metrics, server.URL, nil, 5, 1, logger)
+	results := batchSend(metrics, server.URL, nil, 5, 1, &http.Client{}, logger)
 	assert.Equal(t, 2, len(results))
 	for _, r := range results {
 		assert.NotNil(t, r.err)
@@ -175,7 +175,7 @@ func TestBatchSend_Backpressure(t *testing.T) {
 	logger := logrus.New()
 	logger.SetLevel(logrus.DebugLevel)
 
-	results := batchSend(metrics, server.URL, nil, 100, 2, logger)
+	results := batchSend(metrics, server.URL, nil, 100, 2, &http.Client{}, logger)
 
 	assert.Equal(t, 5, len(results))
 	for _, r := range results {

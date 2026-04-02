@@ -2,13 +2,18 @@ package dynatracewriter
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"io"
 	"net/http"
 	"sync"
+	"time"
 
 	"github.com/sirupsen/logrus"
 )
+
+// defaultBatchTimeout is the per-batch HTTP request timeout.
+const defaultBatchTimeout = 30 * time.Second
 
 // chunkMetrics splits a slice of dynatraceMetric into chunks of at most chunkSize.
 func chunkMetrics(metrics []dynatraceMetric, chunkSize int) [][]dynatraceMetric {
@@ -60,6 +65,7 @@ func batchSend(
 	headers map[string]string,
 	batchSize int,
 	maxConcurrency int,
+	client *http.Client,
 	logger logrus.FieldLogger,
 ) []batchResult {
 	if len(metrics) == 0 {
@@ -99,7 +105,7 @@ func batchSend(
 			sem <- struct{}{}        // acquire
 			defer func() { <-sem }() // release
 
-			results[idx] = sendBatch(idx, batch, url, headers, logger)
+			results[idx] = sendBatch(idx, batch, url, headers, client, logger)
 		}(i, chunk)
 	}
 
@@ -112,11 +118,15 @@ func sendBatch(
 	batch []dynatraceMetric,
 	url string,
 	headers map[string]string,
+	client *http.Client,
 	logger logrus.FieldLogger,
 ) batchResult {
 	payload := generatePayload(batch)
 
-	request, err := http.NewRequest("POST", url, bytes.NewBuffer([]byte(payload)))
+	ctx, cancel := context.WithTimeout(context.Background(), defaultBatchTimeout)
+	defer cancel()
+
+	request, err := http.NewRequestWithContext(ctx, "POST", url, bytes.NewBuffer([]byte(payload)))
 	if err != nil {
 		return batchResult{batchIndex: batchIndex, count: len(batch), err: err}
 	}
@@ -125,7 +135,6 @@ func sendBatch(
 		request.Header.Set(key, value)
 	}
 
-	client := &http.Client{}
 	response, err := client.Do(request)
 	if err != nil {
 		return batchResult{batchIndex: batchIndex, count: len(batch), err: err}
