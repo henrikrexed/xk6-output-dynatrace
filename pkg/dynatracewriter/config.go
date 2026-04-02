@@ -172,6 +172,23 @@ func ParseArg(arg string) (Config, error) {
 		}
 	}
 
+	if v, ok := params["batchSize"].(float64); ok {
+		bs := int(v)
+		if bs > maxBatchSize {
+			bs = maxBatchSize
+		}
+		if bs > 0 {
+			c.BatchSize = bs
+		}
+	}
+
+	if v, ok := params["maxConcurrentExports"].(float64); ok {
+		mc := int(v)
+		if mc > 0 {
+			c.MaxConcurrentExports = mc
+		}
+	}
+
 	return c, nil
 }
 

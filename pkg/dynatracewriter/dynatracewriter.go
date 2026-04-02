@@ -2,6 +2,7 @@ package dynatracewriter
 
 import (
 	"fmt"
+	"net/http"
 	"time"
 
 	"github.com/sirupsen/logrus"
@@ -15,6 +16,7 @@ type Output struct {
 	output.SampleBuffer
     params  output.Params
 	logger logrus.FieldLogger
+	httpClient *http.Client
 }
 
 var _ output.Output = new(Output)
@@ -44,6 +46,9 @@ func (*Output) Description() string {
 }
 
 func (o *Output) Start() error {
+	o.httpClient = &http.Client{
+		Timeout: defaultDynatraceTimeout,
+	}
 	if periodicFlusher, err := output.NewPeriodicFlusher(time.Duration(o.config.FlushPeriod.Duration), o.flush); err != nil {
 		return err
 	} else {
@@ -96,6 +101,7 @@ func (o *Output) flush() {
 		o.config.Headers,
 		o.config.BatchSize,
 		o.config.MaxConcurrentExports,
+		o.httpClient,
 		o.logger,
 	)
 
