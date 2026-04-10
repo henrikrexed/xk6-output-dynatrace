@@ -47,9 +47,7 @@ func samleToDynametric(sample metrics.Sample ) dynatraceMetric {
 
 func (e *dynatraceMetric) toText() string {
 
-   var result=""
-
-   result=metricKeyPrefix+"."+e.metricKeyName
+   result:=metricKeyPrefix+"."+e.metricKeyName
 
    if(len(e.metricDimensions)!=0) {
         for key, value := range e.metricDimensions {

@@ -14,7 +14,6 @@ type Output struct {
 	config *Config
 	periodicFlusher *output.PeriodicFlusher
 	output.SampleBuffer
-    params  output.Params
 	logger logrus.FieldLogger
 	httpClient *http.Client
 }
@@ -143,12 +142,8 @@ func (o *Output) convertToTimeDynatraceData(samplesContainers []metrics.SampleCo
 			// This approach also allows to avoid hard to replicate issues with duplicate timestamps.
 
             dynametric := samleToDynametric( sample)
-            if &dynametric.metricValue != nil {
-                o.logger.Debug("metric name : " + dynametric.metricKeyName)
-                dynTimeSeries = append  (dynTimeSeries, dynametric)
-            } else {
-                o.logger.Debug("The value is missing")
-            }
+            o.logger.Debug("metric name : " + dynametric.metricKeyName)
+            dynTimeSeries = append  (dynTimeSeries, dynametric)
 		}
 
 		// Do not blow up if remote endpoint is overloaded and responds too slowly.

@@ -139,7 +139,7 @@ func sendBatch(
 	if err != nil {
 		return batchResult{batchIndex: batchIndex, count: len(batch), err: err}
 	}
-	defer response.Body.Close()
+	defer response.Body.Close() //nolint:errcheck
 	io.ReadAll(response.Body) //nolint:errcheck // drain body for connection reuse
 
 	if response.StatusCode >= 400 {

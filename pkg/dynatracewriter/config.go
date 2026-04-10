@@ -62,7 +62,7 @@ func (conf Config) ConstructConfig() (*Config, error) {
 		return nil, err
 	}
     if len(conf.ApiToken.String) == 0 {
-       return nil, fmt.Errorf("The Dynatrace API token can not been empty or Null")
+       return nil, fmt.Errorf("the Dynatrace API token cannot be empty or null")
     } else {
         conf.Headers["Content-Type"] = "text/plain; charset=utf-8"
         conf.Headers["Authorization"] ="Api-Token " + conf.ApiToken.String
